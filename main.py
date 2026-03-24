@@ -29,12 +29,12 @@ def print_banner():
     typer.secho(URL + "\n", fg=typer.colors.BRIGHT_BLACK)
 
 
-def create_qr_code(text: str, error_level: str) -> qrcode.QRCode:
+def create_qr_code(text: str, error_level: str, version=None) -> qrcode.QRCode:
     if error_level not in EC_MAP:
         raise ValueError(f"Invalid error correction level: {error_level}")
 
     qr = qrcode.QRCode(
-        version=None, error_correction=EC_MAP[error_level], box_size=29, border=4
+        version=version, error_correction=EC_MAP[error_level], box_size=29, border=4
     )
     qr.add_data(text)
     qr.make(fit=True)
@@ -138,6 +138,13 @@ def create(
 ):
     qr1 = create_qr_code(primary_url, error_level)
     qr2 = create_qr_code(overlay_url, error_level)
+
+    # Ensure both QR codes are the same size/version
+    if qr1.version != qr2.version:
+        size = max(qr1.version, qr2.version)
+        qr1 = create_qr_code(primary_url, error_level, size)
+        qr2 = create_qr_code(overlay_url, error_level, size)
+
     img1 = qr1.make_image()
     img1.save("qr1.png")
     img2 = qr2.make_image()
@@ -145,7 +152,7 @@ def create(
 
     if qr1.version != qr2.version:
         typer.secho("Error: ", fg=typer.colors.RED, bold=True, nl=False)
-        typer.echo("QR codes must be the same version/size.")
+        typer.echo("QR codes must be the same version/size")
         raise typer.Exit(code=1)
 
     map1 = get_pixel_map("./qr1.png", module_size, border_size)
