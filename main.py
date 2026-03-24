@@ -1,3 +1,6 @@
+# Based on research by Kuo-Chien Chou and Ran-Zan Wang
+# "Dual-Message QR Codes" - https://doi.org/10.3390/s24103055
+
 import pyfiglet
 import qrcode
 import typer
@@ -9,6 +12,11 @@ from qrcode.constants import (
     ERROR_CORRECT_Q,
 )
 
+NAME = "qrupt0r"
+VERSION = "0.1.3"
+URL = "https://github.com/steve-legere/qrupt0r"
+
+# Reference: https://www.qrcode.com/en/about/error_correction.html
 EC_MAP = {
     "L": ERROR_CORRECT_L,
     "M": ERROR_CORRECT_M,
@@ -16,22 +24,37 @@ EC_MAP = {
     "H": ERROR_CORRECT_H,
 }
 
+
 app = typer.Typer(add_completion=False)
-NAME = "qrupt0r"
-VERSION = "0.1.2"
-URL = "https://github.com/steve-legere/qrupt0r"
 
 
 def print_banner():
+    """Prints the CLI banner"""
     banner_text = pyfiglet.figlet_format(NAME, font="smslant")
     typer.secho(banner_text, fg=typer.colors.RED, bold=True)
     typer.secho(f"v{VERSION} :: dual-module QR generator", fg=typer.colors.BRIGHT_BLACK)
     typer.secho(URL + "\n", fg=typer.colors.BRIGHT_BLACK)
 
 
-def create_qr_code(text: str, error_level: str, version=None) -> qrcode.QRCode:
+def create_qr_code(text: str, error_level: str, version: int = None) -> qrcode.QRCode:
+    """
+    Generates a QR code from the given text with specified error correction level and optional version.
+
+    :param text: The data to be encoded in the QR code. Must be a string.
+    :param error_level: The error correction level for the QR code. Valid values are 'L', 'M', 'Q', or 'H'.
+        This maps to the corresponding error correction strength, per the QR code standard
+        (see https://www.qrcode.com/en/about/error_correction.html)
+    :param version: Optional version number of the QR code (1-40). If not specified, a suitable version is automatically chosen based on the text length.
+
+    :return: A `qrcode.QRCode` object configured with the provided parameters and ready to be rendered or exported.
+
+    :raises ValueError: If an invalid error correction level is provided.
+    """
     if error_level not in EC_MAP:
         raise ValueError(f"Invalid error correction level: {error_level}")
+
+    if version and version > 40:
+        raise ValueError(f"Invalid QR code version: {version}")
 
     qr = qrcode.QRCode(
         version=version, error_correction=EC_MAP[error_level], box_size=29, border=4
@@ -48,7 +71,28 @@ def is_black(module_pixels):
     return avg < 128  # threshold
 
 
-def get_pixel_map(image_path, module_size, border_modules):
+def get_pixel_map(
+    image_path: str, module_size: int, border_modules: int
+) -> list[list[int]]:
+    """
+    Extracts a binary pixel map from an image file representing the QR code modules.
+
+    This function reads a grayscale image of a QR code and converts it into a 2D array
+    where each element represents a module (1 for black, 0 for white). The conversion
+    is done by sampling pixels in each module area and determining if the average
+    brightness is below or above a threshold.
+
+    :param image_path: Path to the input image file containing the QR code. Must be a valid
+        path to an existing file that can be opened with PIL.
+    :param module_size: Size of each QR code module in pixels (side length). This determines
+        how many pixels are sampled from the image for each module.
+    :param border_modules: Number of blank modules around the QR code. These modules are not
+        included in the pixel map and act as a buffer to avoid edge effects.
+
+    :return: A 2D list (list of lists) where each element is either 0 or 1, representing
+        the binary state of each module in the QR code. The dimensions of this list correspond
+        to the number of modules per side (not including the border).
+    """
     img = Image.open(image_path).convert("L")  # grayscale
     width, height = img.size
 
@@ -80,7 +124,17 @@ def get_pixel_map(image_path, module_size, border_modules):
     return pixel_map
 
 
-def get_xor_result(map1, map2):
+def get_xor_result(map1: list[list[int]], map2: list[list[int]]) -> list[list[int]]:
+    """Computes the XOR (exclusive OR) of two QR code module maps.
+
+    Args:
+        map1: A 2D list representing the first QR code's modules (0 for white, 1 for black).
+        map2: A 2D list representing the second QR code's modules (0 for white, 1 for black).
+
+    Returns:
+        A 2D list where each element is the XOR of corresponding elements from `map1` and `map2`.
+        This results in a binary map that highlights the differences between the two input maps.
+    """
     size = len(map1)
     return [[map1[r][c] ^ map2[r][c] for c in range(size)] for r in range(size)]
 
@@ -88,6 +142,7 @@ def get_xor_result(map1, map2):
 def generate_overlay_qr(
     base_image_path, xor_map, module_size, submodule_size, border_modules, output_path
 ):
+
     img = Image.open(base_image_path).convert("RGB")
     draw = ImageDraw.Draw(img)
 
@@ -136,6 +191,11 @@ def create(
         4, "--border", "-b", help="Border thickness (number of blank modules)"
     ),
 ):
+    if submodule_size > module_size:
+        typer.secho("Error: ", fg=typer.colors.RED, bold=True, nl=False)
+        typer.echo("Submodule size must be less than module size")
+        raise typer.Exit(code=1)
+
     qr1 = create_qr_code(primary_url, error_level)
     qr2 = create_qr_code(overlay_url, error_level)
 
