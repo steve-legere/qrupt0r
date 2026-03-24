@@ -13,7 +13,7 @@ from qrcode.constants import (
 )
 
 NAME = "qrupt0r"
-VERSION = "0.1.3"
+VERSION = "0.1.4"
 URL = "https://github.com/steve-legere/qrupt0r"
 
 # Reference: https://www.qrcode.com/en/about/error_correction.html
@@ -203,6 +203,14 @@ def create(
     if submodule_size > module_size:
         typer.secho("Error: ", fg=typer.colors.RED, bold=True, nl=False)
         typer.echo("Submodule size must be less than module size")
+        raise typer.Exit(code=1)
+
+    error_level = error_level.upper()
+    if error_level not in EC_MAP:
+        typer.secho("Error: ", fg=typer.colors.RED, bold=True, nl=False)
+        typer.echo(
+            f"Error level must be one of: {[letter for letter in EC_MAP.keys()]}"
+        )
         raise typer.Exit(code=1)
 
     qr1 = create_qr_code(primary_url, error_level, module_size, border_size)
