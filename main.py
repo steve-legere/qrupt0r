@@ -18,7 +18,7 @@ EC_MAP = {
 
 app = typer.Typer(add_completion=False)
 NAME = "qrupt0r"
-VERSION = "0.0.2"
+VERSION = "0.1.0"
 URL = "https://github.com/steve-legere/qrupt0r"
 
 
@@ -91,7 +91,7 @@ def generate_overlay_qr(
     img = Image.open(base_image_path).convert("RGB")
     draw = ImageDraw.Draw(img)
 
-    sub_size = int(module_size * 0.3)
+    sub_size = 5
     offset = module_size * border_modules
     half_gap = (module_size - sub_size) // 2
 
