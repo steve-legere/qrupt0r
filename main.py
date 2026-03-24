@@ -86,12 +86,12 @@ def get_xor_result(map1, map2):
 
 
 def generate_overlay_qr(
-    base_image_path, xor_map, module_size, border_modules, output_path
+    base_image_path, xor_map, module_size, submodule_size, border_modules, output_path
 ):
     img = Image.open(base_image_path).convert("RGB")
     draw = ImageDraw.Draw(img)
 
-    sub_size = 5
+    sub_size = submodule_size
     offset = module_size * border_modules
     half_gap = (module_size - sub_size) // 2
 
@@ -121,24 +121,44 @@ def generate_overlay_qr(
 
 @app.command()
 def create(
-    primary: str = typer.Argument(..., help="Primary (base) URL to encode as QR code"),
-    secondary: str = typer.Argument(..., help="Secondary URL to embed in QR code"),
+    primary_url: str = typer.Argument(..., help="Primary URL to generate QR code"),
+    overlay_url: str = typer.Argument(..., help="URL to embed into the QR code"),
     error_level: str = typer.Option(
-        "M", "--error-level", "-e", help="Error correction level (L, M, Q, H)"
+        "L", "--error-level", "-e", help="Error correction level (L, M, Q, H)"
+    ),
+    module_size: int = typer.Option(
+        29, "--module", "-m", help="Module size in pixels (side length)"
+    ),
+    submodule_size: int = typer.Option(
+        5, "--submodule", "-s", help="Submodule size in pixels (side length)"
+    ),
+    border_size: int = typer.Option(
+        4, "--border", "-b", help="Border thickness (number of blank modules)"
     ),
 ):
-    qr1 = create_qr_code(primary, error_level)
-    qr2 = create_qr_code(secondary, error_level)
+    qr1 = create_qr_code(primary_url, error_level)
+    qr2 = create_qr_code(overlay_url, error_level)
     img1 = qr1.make_image()
     img1.save("qr1.png")
     img2 = qr2.make_image()
     img2.save("qr2.png")
-    print(f"Got QR code versions: {qr1.version} and {qr2.version}")
 
-    map1 = get_pixel_map("./qr1.png", 29, 4)
-    map2 = get_pixel_map("./qr2.png", 29, 4)
+    if qr1.version != qr2.version:
+        typer.secho("Error: ", fg=typer.colors.RED, bold=True, nl=False)
+        typer.echo("QR codes must be the same version/size.")
+        raise typer.Exit(code=1)
+
+    map1 = get_pixel_map("./qr1.png", module_size, border_size)
+    map2 = get_pixel_map("./qr2.png", module_size, border_size)
     difference_map = get_xor_result(map1, map2)
-    generate_overlay_qr("./qr1.png", difference_map, 29, 4, "./combined.png")
+    generate_overlay_qr(
+        "./qr1.png",
+        difference_map,
+        module_size,
+        submodule_size,
+        border_size,
+        "./combined.png",
+    )
 
 
 if __name__ == "__main__":
