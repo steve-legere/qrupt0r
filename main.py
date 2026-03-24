@@ -18,7 +18,7 @@ EC_MAP = {
 
 app = typer.Typer(add_completion=False)
 NAME = "qrupt0r"
-VERSION = "0.1.0"
+VERSION = "0.1.2"
 URL = "https://github.com/steve-legere/qrupt0r"
 
 
