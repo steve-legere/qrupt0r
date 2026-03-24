@@ -1,3 +1,4 @@
+import pyfiglet
 import qrcode
 import typer
 from qrcode.constants import (
@@ -15,6 +16,16 @@ EC_MAP = {
 }
 
 app = typer.Typer(add_completion=False)
+NAME = "qrupt0r"
+VERSION = "0.0.2"
+
+
+def print_banner():
+    banner_text = pyfiglet.figlet_format(NAME, font="smslant")
+    typer.secho(banner_text, fg=typer.colors.RED, bold=True)
+    typer.secho(
+        f"v{VERSION} :: dual-module QR generator\n", fg=typer.colors.BRIGHT_BLACK
+    )
 
 
 def create_qr_code(text: str, error_level: str) -> qrcode.QRCode:
@@ -34,7 +45,7 @@ def create(
     primary: str = typer.Argument(..., help="Primary (base) URL to encode as QR code"),
     secondary: str = typer.Argument(..., help="Secondary URL to embed in QR code"),
     error_level: str = typer.Option(
-        "L", "--error-level", "-e", help="Error correction level (L, M, Q, H)"
+        "M", "--error-level", "-e", help="Error correction level (L, M, Q, H)"
     ),
 ):
     qr1 = create_qr_code(primary, error_level)
@@ -47,4 +58,5 @@ def create(
 
 
 if __name__ == "__main__":
+    print_banner()
     app()
