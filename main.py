@@ -36,15 +36,21 @@ def print_banner():
     typer.secho(URL + "\n", fg=typer.colors.BRIGHT_BLACK)
 
 
-def create_qr_code(text: str, error_level: str, version: int = None) -> qrcode.QRCode:
+def create_qr_code(
+    text: str, error_level: str, module_size=29, border_size=4, version: int = None
+) -> qrcode.QRCode:
     """
-    Generates a QR code from the given text with specified error correction level and optional version.
+    Generates a QR code from the given text and error correction level, with optionally specified module size, version,
+    and border size.
 
+    :param border_size: The number of blank (white) modules around the QR code.
+    :param module_size: The side length of each module, in pixels.
     :param text: The data to be encoded in the QR code. Must be a string.
     :param error_level: The error correction level for the QR code. Valid values are 'L', 'M', 'Q', or 'H'.
         This maps to the corresponding error correction strength, per the QR code standard
         (see https://www.qrcode.com/en/about/error_correction.html)
-    :param version: Optional version number of the QR code (1-40). If not specified, a suitable version is automatically chosen based on the text length.
+    :param version: Optional version number of the QR code (1-40). If not specified, a suitable version is automatically
+    chosen based on the text length.
 
     :return: A `qrcode.QRCode` object configured with the provided parameters and ready to be rendered or exported.
 
@@ -57,7 +63,10 @@ def create_qr_code(text: str, error_level: str, version: int = None) -> qrcode.Q
         raise ValueError(f"Invalid QR code version: {version}")
 
     qr = qrcode.QRCode(
-        version=version, error_correction=EC_MAP[error_level], box_size=29, border=4
+        version=version,
+        error_correction=EC_MAP[error_level],
+        box_size=module_size,
+        border=border_size,
     )
     qr.add_data(text)
     qr.make(fit=True)
@@ -196,14 +205,18 @@ def create(
         typer.echo("Submodule size must be less than module size")
         raise typer.Exit(code=1)
 
-    qr1 = create_qr_code(primary_url, error_level)
-    qr2 = create_qr_code(overlay_url, error_level)
+    qr1 = create_qr_code(primary_url, error_level, module_size, border_size)
+    qr2 = create_qr_code(overlay_url, error_level, module_size, border_size)
 
     # Ensure both QR codes are the same size/version
     if qr1.version != qr2.version:
-        size = max(qr1.version, qr2.version)
-        qr1 = create_qr_code(primary_url, error_level, size)
-        qr2 = create_qr_code(overlay_url, error_level, size)
+        version = max(qr1.version, qr2.version)
+        qr1 = create_qr_code(
+            primary_url, error_level, module_size, border_size, version
+        )
+        qr2 = create_qr_code(
+            overlay_url, error_level, module_size, border_size, version
+        )
 
     img1 = qr1.make_image()
     img1.save("qr1.png")
