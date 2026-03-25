@@ -1,5 +1,6 @@
 # Based on research by Kuo-Chien Chou and Ran-Zan Wang
 # "Dual-Message QR Codes" - https://doi.org/10.3390/s24103055
+import logging
 
 import pyfiglet
 import qrcode
@@ -12,6 +13,8 @@ from qrcode.constants import (
     ERROR_CORRECT_Q,
 )
 
+from logger import setup_logging, logger
+
 NAME = "qrupt0r"
 VERSION = "0.1.4"
 URL = "https://github.com/steve-legere/qrupt0r"
@@ -23,7 +26,6 @@ EC_MAP = {
     "Q": ERROR_CORRECT_Q,
     "H": ERROR_CORRECT_H,
 }
-
 
 app = typer.Typer(add_completion=False)
 
@@ -40,8 +42,7 @@ def create_qr_code(
     text: str, error_level: str, module_size=29, border_size=4, version: int = None
 ) -> qrcode.QRCode:
     """
-    Generates a QR code from the given text and error correction level, with optionally specified module size, version,
-    and border size.
+    Generates a QR code from the given text and error correction level, with optionally specified border size, module size, and version.
 
     :param border_size: The number of blank (white) modules around the QR code.
     :param module_size: The side length of each module, in pixels.
@@ -50,7 +51,7 @@ def create_qr_code(
         This maps to the corresponding error correction strength, per the QR code standard
         (see https://www.qrcode.com/en/about/error_correction.html)
     :param version: Optional version number of the QR code (1-40). If not specified, a suitable version is automatically
-    chosen based on the text length.
+        chosen based on the text length.
 
     :return: A `qrcode.QRCode` object configured with the provided parameters and ready to be rendered or exported.
 
@@ -187,6 +188,9 @@ def generate_overlay_qr(
 def create(
     primary_url: str = typer.Argument(..., help="Primary URL to generate QR code"),
     overlay_url: str = typer.Argument(..., help="URL to embed into the QR code"),
+    border_size: int = typer.Option(
+        4, "--border", "-b", help="Border thickness (number of blank modules)"
+    ),
     error_level: str = typer.Option(
         "L", "--error-level", "-e", help="Error correction level (L, M, Q, H)"
     ),
@@ -196,21 +200,21 @@ def create(
     submodule_size: int = typer.Option(
         5, "--submodule", "-s", help="Submodule size in pixels (side length)"
     ),
-    border_size: int = typer.Option(
-        4, "--border", "-b", help="Border thickness (number of blank modules)"
-    ),
+    debug: bool = typer.Option(False, "--debug", help="Enable debug output"),
 ):
+    if debug:
+        logger.setLevel(logging.DEBUG)
+        setup_logging(logging.DEBUG)
+    else:
+        setup_logging(logging.INFO)
+
     if submodule_size > module_size:
-        typer.secho("Error: ", fg=typer.colors.RED, bold=True, nl=False)
-        typer.echo("Submodule size must be less than module size")
+        logger.error("Submodule size must be less than module size")
         raise typer.Exit(code=1)
 
     error_level = error_level.upper()
     if error_level not in EC_MAP:
-        typer.secho("Error: ", fg=typer.colors.RED, bold=True, nl=False)
-        typer.echo(
-            f"Error level must be one of: {[letter for letter in EC_MAP.keys()]}"
-        )
+        logger.error(f"Invalid error level: {error_level}")
         raise typer.Exit(code=1)
 
     qr1 = create_qr_code(primary_url, error_level, module_size, border_size)
@@ -232,8 +236,7 @@ def create(
     img2.save("qr2.png")
 
     if qr1.version != qr2.version:
-        typer.secho("Error: ", fg=typer.colors.RED, bold=True, nl=False)
-        typer.echo("QR codes must be the same version/size")
+        logger.error("QR codes must be the same version/size")
         raise typer.Exit(code=1)
 
     map1 = get_pixel_map("./qr1.png", module_size, border_size)
@@ -247,6 +250,7 @@ def create(
         border_size,
         "./combined.png",
     )
+    logger.info("QR code created successfully")
 
 
 if __name__ == "__main__":
