@@ -3,7 +3,7 @@ import logging
 import typer
 
 LOG_STYLES = {
-    logging.DEBUG: {"symbol": "[D]", "fg": typer.colors.WHITE, "bold": False},
+    logging.DEBUG: {"symbol": "[D]", "fg": typer.colors.BRIGHT_YELLOW, "bold": True},
     logging.INFO: {"symbol": "[*]", "fg": typer.colors.BLUE, "bold": True},
     logging.WARNING: {"symbol": "[!]", "fg": typer.colors.YELLOW, "bold": True},
     logging.ERROR: {"symbol": "[X]", "fg": typer.colors.RED, "bold": True},

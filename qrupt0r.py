@@ -71,6 +71,7 @@ def create_qr_code(
     )
     qr.add_data(text)
     qr.make(fit=True)
+    logger.debug(f"Created QR code [v: {version}] [ec: {error_level}] [mod: {module_size}] [border: {border_size}]")
     return qr
 
 
@@ -146,7 +147,8 @@ def get_xor_result(map1: list[list[int]], map2: list[list[int]]) -> list[list[in
         This results in a binary map that highlights the differences between the two input maps.
     """
     size = len(map1)
-    return [[map1[r][c] ^ map2[r][c] for c in range(size)] for r in range(size)]
+    xor_map = [[map1[r][c] ^ map2[r][c] for c in range(size)] for r in range(size)]
+    return xor_map
 
 
 def generate_overlay_qr(
@@ -183,7 +185,7 @@ def generate_overlay_qr(
 
     img.save(output_path)
 
-
+# TODO: Implement optional output filename parameter
 @app.command()
 def create(
     primary_url: str = typer.Argument(..., help="Primary URL to generate QR code"),
@@ -203,13 +205,17 @@ def create(
     debug: bool = typer.Option(False, "--debug", help="Enable debug output"),
 ):
     if debug:
-        logger.setLevel(logging.DEBUG)
+        logger.set_level(logging.DEBUG)
         setup_logging(logging.DEBUG)
     else:
         setup_logging(logging.INFO)
 
-    if submodule_size > module_size:
+    if module_size <= submodule_size:
         logger.error("Submodule size must be less than module size")
+        raise typer.Exit(code=1)
+
+    if module_size < 3 or module_size > 100:
+        logger.error("Module size must be between 3 and 100")
         raise typer.Exit(code=1)
 
     error_level = error_level.upper()
@@ -217,12 +223,15 @@ def create(
         logger.error(f"Invalid error level: {error_level}")
         raise typer.Exit(code=1)
 
+    logger.debug("create() passed input validation")
+
     qr1 = create_qr_code(primary_url, error_level, module_size, border_size)
     qr2 = create_qr_code(overlay_url, error_level, module_size, border_size)
 
     # Ensure both QR codes are the same size/version
     if qr1.version != qr2.version:
         version = max(qr1.version, qr2.version)
+        logger.debug(f"Normalizing QR code versions to [{version}]")
         qr1 = create_qr_code(
             primary_url, error_level, module_size, border_size, version
         )
@@ -230,6 +239,7 @@ def create(
             overlay_url, error_level, module_size, border_size, version
         )
 
+    # TODO: Transient images should not be saved to disk
     img1 = qr1.make_image()
     img1.save("qr1.png")
     img2 = qr2.make_image()
@@ -250,6 +260,8 @@ def create(
         border_size,
         "./combined.png",
     )
+
+    # TODO: filepath
     logger.info("QR code created successfully")
 
 
