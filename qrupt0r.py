@@ -1,6 +1,7 @@
 # Based on research by Kuo-Chien Chou and Ran-Zan Wang
 # "Dual-Message QR Codes" - https://doi.org/10.3390/s24103055
 import logging
+from urllib.parse import urlparse
 
 import pyfiglet
 import qrcode
@@ -16,7 +17,7 @@ from qrcode.constants import (
 from logger import setup_logging, logger
 
 NAME = "qrupt0r"
-VERSION = "0.2.0"
+VERSION = "0.2.2"
 URL = "https://github.com/steve-legere/qrupt0r"
 
 THRESHOLD = 128
@@ -28,7 +29,6 @@ EC_MAP = {
     "Q": ERROR_CORRECT_Q,
     "H": ERROR_CORRECT_H,
 }
-
 app = typer.Typer(add_completion=False)
 
 
@@ -38,6 +38,11 @@ def print_banner():
     typer.secho(banner_text, fg=typer.colors.RED, bold=True)
     typer.secho(f"v{VERSION} :: dual-module QR generator", fg=typer.colors.BRIGHT_BLACK)
     typer.secho(URL + "\n", fg=typer.colors.BRIGHT_BLACK)
+
+
+def is_valid_url(url: str) -> bool:
+    parsed = urlparse(url)
+    return all((parsed.scheme, parsed.netloc))
 
 
 def create_qr_code(
@@ -62,7 +67,7 @@ def create_qr_code(
     if error_level not in EC_MAP:
         raise ValueError(f"Invalid error correction level: {error_level}")
 
-    if version and version > 40:
+    if version and not (1 <= version <= 40):
         raise ValueError(f"Invalid QR code version: {version}")
 
     qr = qrcode.QRCode(
@@ -73,15 +78,10 @@ def create_qr_code(
     )
     qr.add_data(text)
     qr.make(fit=True)
-    logger.debug(f"Created QR code [v: {version}] [ec: {error_level}] [mod: {module_size}] [border: {border_size}]")
+    logger.debug(
+        f"Created QR code [v: {version}] [ec: {error_level}] [mod: {module_size}] [border: {border_size}]"
+    )
     return qr
-
-
-def is_black(module_pixels):
-    """Determine if a module is black or white based on average brightness."""
-    # Convert to grayscale and average pixel values
-    avg = sum(module_pixels) / len(module_pixels)
-    return avg < THRESHOLD  # threshold
 
 
 def get_pixel_map(
@@ -92,7 +92,7 @@ def get_pixel_map(
 
     This function reads a grayscale image of a QR code and converts it into a 2D array
     where each element represents a module (1 for black, 0 for white). The conversion
-    is done by checking the centre pixel in each module area and determining if the
+    is done by checking the center pixel in each module area and determining if the
     brightness is below or above a threshold.
 
     :param img: An Image object representing a QR code.
@@ -149,7 +149,9 @@ def get_xor_result(map1: list[list[int]], map2: list[list[int]]) -> list[list[in
         This results in a binary map that highlights the differences between the two input maps.
     """
     if (len(map1), len(map1[0])) != (len(map2), len(map2[0])):
-        logger.warning("XOR operation on two different QR code sizes will likely break functionality")
+        logger.warning(
+            "XOR operation on two different QR code sizes will likely break functionality"
+        )
     size = len(map1)
     xor_map = [[map1[r][c] ^ map2[r][c] for c in range(size)] for r in range(size)]
     return xor_map
@@ -203,6 +205,76 @@ def generate_overlay_qr(
 
     img.save(output_path)
 
+
+def validate_inputs(
+    primary_url,
+    overlay_url,
+    border_size,
+    error_level,
+    module_size,
+    submodule_size,
+    output_path,
+):
+    """Validates all input parameters for dual-module QR code generation.
+
+    Args:
+        primary_url: The primary URL to encode in the base QR code.
+        overlay_url: The URL to embed as submodules in the QR code.
+        border_size: Number of blank modules around the QR code border.
+        error_level: Error correction level ('L', 'M', 'Q', or 'H').
+        module_size: Size of each QR code module in pixels.
+        submodule_size: Size of each embedded submodule in pixels.
+        output_path: File path where the generated QR code will be saved.
+
+    Raises:
+        typer.Exit: If any validation check fails, exits with code 1.
+    """
+
+    if not is_valid_url(primary_url):
+        logger.warning("Primary URL does not appear to be a valid URL")
+
+    if not is_valid_url(overlay_url):
+        logger.warning("Overlay URL does not appear to be a valid URL")
+
+    if border_size < 0 or not isinstance(border_size, int):
+        logger.error("Border size must be a positive integer or 0")
+        raise typer.Exit(code=1)
+
+    if module_size <= submodule_size:
+        logger.error("Submodule size must be less than module size")
+        raise typer.Exit(code=1)
+
+    if module_size < 3 or module_size > 1000:
+        logger.error("Module size must be between 3 and 1000")
+        raise typer.Exit(code=1)
+
+    if submodule_size < 1 or submodule_size > 1000:
+        logger.error("Submodule size must be between 1 and 1000")
+        raise typer.Exit(code=1)
+
+    if not (
+        isinstance(error_level, str)
+        and len(error_level) == 1
+        and error_level.upper() in EC_MAP
+    ):
+        # safe: .upper() is guarded by isinstance()
+        logger.error(f"Invalid error level: {error_level}")
+        raise typer.Exit(code=1)
+
+    if not is_writable_path(output_path):
+        logger.error(f"Permission denied or invalid output path: {output_path}")
+        raise typer.Exit(code=1)
+
+
+def is_writable_path(path_str: str) -> bool:
+    try:
+        with open(path_str, "w"):
+            pass
+        return True
+    except (OSError, IOError):
+        return False
+
+
 @app.command()
 def create(
     primary_url: str = typer.Argument(..., help="Primary URL to generate QR code"),
@@ -224,28 +296,24 @@ def create(
         5, "--submodule", "-s", help="Submodule size in pixels (side length)"
     ),
 ):
+    # Set debug output, if requested
     if debug:
         logger.set_level(logging.DEBUG)
         setup_logging(logging.DEBUG)
     else:
         setup_logging(logging.INFO)
 
-    if module_size <= submodule_size:
-        logger.error("Submodule size must be less than module size")
-        raise typer.Exit(code=1)
-
-    if module_size < 3 or module_size > 1000:
-        logger.error("Module size must be between 3 and 1000")
-        raise typer.Exit(code=1)
-
-    if submodule_size < 1 or submodule_size > 1000:
-        logger.error("Submodule size must be between 1 and 1000")
-        raise typer.Exit(code=1)
+    validate_inputs(
+        primary_url,
+        overlay_url,
+        border_size,
+        error_level,
+        module_size,
+        submodule_size,
+        output_path,
+    )
 
     error_level = error_level.upper()
-    if error_level not in EC_MAP:
-        logger.error(f"Invalid error level: {error_level}")
-        raise typer.Exit(code=1)
 
     logger.debug("create() passed input validation")
 
