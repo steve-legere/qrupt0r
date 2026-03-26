@@ -16,7 +16,7 @@ from qrcode.constants import (
 from logger import setup_logging, logger
 
 NAME = "qrupt0r"
-VERSION = "0.1.4"
+VERSION = "0.1.6"
 URL = "https://github.com/steve-legere/qrupt0r"
 
 # Reference: https://www.qrcode.com/en/about/error_correction.html
@@ -185,11 +185,11 @@ def generate_overlay_qr(
 
     img.save(output_path)
 
-# TODO: Implement optional output filename parameter
 @app.command()
 def create(
     primary_url: str = typer.Argument(..., help="Primary URL to generate QR code"),
     overlay_url: str = typer.Argument(..., help="URL to embed into the QR code"),
+    debug: bool = typer.Option(False, "--debug", help="Enable debug output"),
     border_size: int = typer.Option(
         4, "--border", "-b", help="Border thickness (number of blank modules)"
     ),
@@ -199,10 +199,12 @@ def create(
     module_size: int = typer.Option(
         29, "--module", "-m", help="Module size in pixels (side length)"
     ),
+    output_path: str = typer.Option(
+        "qrupt0r.png", "--output", "-o", help="QR code output path"
+    ),
     submodule_size: int = typer.Option(
         5, "--submodule", "-s", help="Submodule size in pixels (side length)"
     ),
-    debug: bool = typer.Option(False, "--debug", help="Enable debug output"),
 ):
     if debug:
         logger.set_level(logging.DEBUG)
@@ -214,9 +216,12 @@ def create(
         logger.error("Submodule size must be less than module size")
         raise typer.Exit(code=1)
 
-    if module_size < 3 or module_size > 100:
-        logger.error("Module size must be between 3 and 100")
+    if module_size < 3 or module_size > 1000:
+        logger.error("Module size must be between 3 and 1000")
         raise typer.Exit(code=1)
+
+    if submodule_size < 1 or submodule_size > 1000:
+        logger.error("Submodule size must be between 1 and 1000")
 
     error_level = error_level.upper()
     if error_level not in EC_MAP:
@@ -258,11 +263,10 @@ def create(
         module_size,
         submodule_size,
         border_size,
-        "./combined.png",
+        output_path,
     )
 
-    # TODO: filepath
-    logger.info("QR code created successfully")
+    logger.info(f"QR code created successfully [{output_path}]")
 
 
 if __name__ == "__main__":
