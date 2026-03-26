@@ -19,6 +19,8 @@ NAME = "qrupt0r"
 VERSION = "0.2.0"
 URL = "https://github.com/steve-legere/qrupt0r"
 
+THRESHOLD = 128
+
 # Reference: https://www.qrcode.com/en/about/error_correction.html
 EC_MAP = {
     "L": ERROR_CORRECT_L,
@@ -79,7 +81,7 @@ def is_black(module_pixels):
     """Determine if a module is black or white based on average brightness."""
     # Convert to grayscale and average pixel values
     avg = sum(module_pixels) / len(module_pixels)
-    return avg < 128  # threshold
+    return avg < THRESHOLD  # threshold
 
 
 def get_pixel_map(
@@ -90,7 +92,7 @@ def get_pixel_map(
 
     This function reads a grayscale image of a QR code and converts it into a 2D array
     where each element represents a module (1 for black, 0 for white). The conversion
-    is done by sampling pixels in each module area and determining if the average
+    is done by checking the centre pixel in each module area and determining if the
     brightness is below or above a threshold.
 
     :param img: An Image object representing a QR code.
@@ -106,11 +108,13 @@ def get_pixel_map(
     img = img.convert("L")
     width, height = img.size
 
+    # Ignore border modules on the left
     start = module_size * border_modules
     end_x = width - start
 
     pixels = img.load()
 
+    # Ignore border modules on the right
     modules_per_side = (end_x - start) // module_size
     pixel_map = []
 
@@ -120,14 +124,13 @@ def get_pixel_map(
             x0 = start + col * module_size
             y0 = start + row * module_size
 
-            # Collect pixels for this module
-            module_pixels = [
-                pixels[x0 + dx, y0 + dy]
-                for dy in range(module_size)
-                for dx in range(module_size)
-            ]
+            # Get the module's centre pixel
+            center_x = x0 + module_size // 2
+            center_y = y0 + module_size // 2
+            pixel = pixels[center_x, center_y]
 
-            row_data.append(1 if is_black(module_pixels) else 0)
+            # 1 if black, 0 if white
+            row_data.append(1 if pixel < THRESHOLD else 0)
 
         pixel_map.append(row_data)
 
@@ -191,7 +194,7 @@ def generate_overlay_qr(
                 pixel = img.getpixel((center_x, center_y))
 
                 # Invert color
-                if sum(pixel) / 3 < 128:
+                if sum(pixel) / 3 < THRESHOLD:
                     color = (255, 255, 255)  # white
                 else:
                     color = (0, 0, 0)  # black
