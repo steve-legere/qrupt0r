@@ -16,7 +16,7 @@ from qrcode.constants import (
 from logger import setup_logging, logger
 
 NAME = "qrupt0r"
-VERSION = "0.1.6"
+VERSION = "0.2.0"
 URL = "https://github.com/steve-legere/qrupt0r"
 
 # Reference: https://www.qrcode.com/en/about/error_correction.html
@@ -83,7 +83,7 @@ def is_black(module_pixels):
 
 
 def get_pixel_map(
-    image_path: str, module_size: int, border_modules: int
+    img: Image.Image, module_size: int, border_modules: int
 ) -> list[list[int]]:
     """
     Extracts a binary pixel map from an image file representing the QR code modules.
@@ -93,8 +93,7 @@ def get_pixel_map(
     is done by sampling pixels in each module area and determining if the average
     brightness is below or above a threshold.
 
-    :param image_path: Path to the input image file containing the QR code. Must be a valid
-        path to an existing file that can be opened with PIL.
+    :param img: An Image object representing a QR code.
     :param module_size: Size of each QR code module in pixels (side length). This determines
         how many pixels are sampled from the image for each module.
     :param border_modules: Number of blank modules around the QR code. These modules are not
@@ -104,7 +103,7 @@ def get_pixel_map(
         the binary state of each module in the QR code. The dimensions of this list correspond
         to the number of modules per side (not including the border).
     """
-    img = Image.open(image_path).convert("L")  # grayscale
+    img = img.convert("L")
     width, height = img.size
 
     start = module_size * border_modules
@@ -154,7 +153,7 @@ def get_xor_result(map1: list[list[int]], map2: list[list[int]]) -> list[list[in
 
 
 def generate_overlay_qr(
-    base_image_path, xor_map, module_size, submodule_size, border_modules, output_path
+    base_image, xor_map, module_size, submodule_size, border_modules, output_path
 ):
     """Generates a dual-module QR code by overlaying submodules on a base QR code.
 
@@ -163,7 +162,7 @@ def generate_overlay_qr(
     that can be read differently depending on scanning distance.
 
     Args:
-        base_image_path: Path to the base QR code image file.
+        base_image: Path to the base QR code image file.
         xor_map: 2D list indicating which modules differ between two QR codes (1 = different, 0 = same).
         module_size: Size of each QR code module in pixels (side length).
         submodule_size: Size of each submodule in pixels (side length).
@@ -171,7 +170,7 @@ def generate_overlay_qr(
         output_path: Path where the final dual-module QR code will be saved.
     """
 
-    img = Image.open(base_image_path).convert("RGB")
+    img = base_image.convert("RGB")
     draw = ImageDraw.Draw(img)
 
     sub_size = submodule_size
@@ -238,6 +237,7 @@ def create(
 
     if submodule_size < 1 or submodule_size > 1000:
         logger.error("Submodule size must be between 1 and 1000")
+        raise typer.Exit(code=1)
 
     error_level = error_level.upper()
     if error_level not in EC_MAP:
@@ -260,21 +260,14 @@ def create(
             overlay_url, error_level, module_size, border_size, version
         )
 
-    # TODO: Transient images should not be saved to disk
-    img1 = qr1.make_image()
-    img1.save("qr1.png")
-    img2 = qr2.make_image()
-    img2.save("qr2.png")
+    base_qr = qr1.make_image().convert("RGB")
+    overlay_qr = qr2.make_image().convert("RGB")
 
-    if qr1.version != qr2.version:
-        logger.error("QR codes must be the same version/size")
-        raise typer.Exit(code=1)
-
-    map1 = get_pixel_map("./qr1.png", module_size, border_size)
-    map2 = get_pixel_map("./qr2.png", module_size, border_size)
+    map1 = get_pixel_map(base_qr, module_size, border_size)
+    map2 = get_pixel_map(overlay_qr, module_size, border_size)
     difference_map = get_xor_result(map1, map2)
     generate_overlay_qr(
-        "./qr1.png",
+        base_qr,
         difference_map,
         module_size,
         submodule_size,
