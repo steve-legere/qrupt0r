@@ -1,6 +1,7 @@
 # Based on research by Kuo-Chien Chou and Ran-Zan Wang
 # "Dual-Message QR Codes" - https://doi.org/10.3390/s24103055
 import logging
+import os
 from urllib.parse import urlparse
 
 import pyfiglet
@@ -17,7 +18,7 @@ from qrcode.constants import (
 from logger import setup_logging, logger
 
 NAME = "qrupt0r"
-VERSION = "0.2.2"
+VERSION = "0.2.3"
 URL = "https://github.com/steve-legere/qrupt0r"
 
 THRESHOLD = 128
@@ -43,6 +44,11 @@ def print_banner():
 def is_valid_url(url: str) -> bool:
     parsed = urlparse(url)
     return all((parsed.scheme, parsed.netloc))
+
+
+def is_writable_path(path_str: str) -> bool:
+    directory = os.path.dirname(path_str) or "."
+    return os.access(directory, os.W_OK)
 
 
 def create_qr_code(
@@ -148,6 +154,10 @@ def get_xor_result(map1: list[list[int]], map2: list[list[int]]) -> list[list[in
         A 2D list where each element is the XOR of corresponding elements from `map1` and `map2`.
         This results in a binary map that highlights the differences between the two input maps.
     """
+    if not map1 or not map1[0] or not map2 or not map2[0]:
+        logger.error("Empty QR map in XOR function")
+        raise typer.Exit(code=1)
+
     if (len(map1), len(map1[0])) != (len(map2), len(map2[0])):
         logger.warning(
             "XOR operation on two different QR code sizes will likely break functionality"
@@ -167,7 +177,7 @@ def generate_overlay_qr(
     that can be read differently depending on scanning distance.
 
     Args:
-        base_image: Path to the base QR code image file.
+        base_image: PIL Image object representing the base QR code.
         xor_map: 2D list indicating which modules differ between two QR codes (1 = different, 0 = same).
         module_size: Size of each QR code module in pixels (side length).
         submodule_size: Size of each submodule in pixels (side length).
@@ -236,7 +246,7 @@ def validate_inputs(
     if not is_valid_url(overlay_url):
         logger.warning("Overlay URL does not appear to be a valid URL")
 
-    if border_size < 0 or not isinstance(border_size, int):
+    if not isinstance(border_size, int) or border_size < 0:
         logger.error("Border size must be a positive integer or 0")
         raise typer.Exit(code=1)
 
@@ -244,13 +254,11 @@ def validate_inputs(
         logger.error("Submodule size must be less than module size")
         raise typer.Exit(code=1)
 
-    if module_size < 3 or module_size > 1000:
-        logger.error("Module size must be between 3 and 1000")
-        raise typer.Exit(code=1)
+    if submodule_size > (module_size * 0.5):
+        logger.warning("Submodule size > 50% of module size may not function correctly")
 
-    if submodule_size < 1 or submodule_size > 1000:
-        logger.error("Submodule size must be between 1 and 1000")
-        raise typer.Exit(code=1)
+    if submodule_size < (module_size * 0.2):
+        logger.warning("Submodule size < 20% of module size may not function correctly")
 
     if not (
         isinstance(error_level, str)
@@ -264,15 +272,6 @@ def validate_inputs(
     if not is_writable_path(output_path):
         logger.error(f"Permission denied or invalid output path: {output_path}")
         raise typer.Exit(code=1)
-
-
-def is_writable_path(path_str: str) -> bool:
-    try:
-        with open(path_str, "w"):
-            pass
-        return True
-    except (OSError, IOError):
-        return False
 
 
 @app.command()
