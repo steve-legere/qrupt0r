@@ -146,6 +146,8 @@ def get_xor_result(map1: list[list[int]], map2: list[list[int]]) -> list[list[in
         A 2D list where each element is the XOR of corresponding elements from `map1` and `map2`.
         This results in a binary map that highlights the differences between the two input maps.
     """
+    if (len(map1), len(map1[0])) != (len(map2), len(map2[0])):
+        logger.warning("XOR operation on two different QR code sizes will likely break functionality")
     size = len(map1)
     xor_map = [[map1[r][c] ^ map2[r][c] for c in range(size)] for r in range(size)]
     return xor_map
@@ -154,6 +156,20 @@ def get_xor_result(map1: list[list[int]], map2: list[list[int]]) -> list[list[in
 def generate_overlay_qr(
     base_image_path, xor_map, module_size, submodule_size, border_modules, output_path
 ):
+    """Generates a dual-module QR code by overlaying submodules on a base QR code.
+
+    Creates a QR code with embedded submodules by inverting the color of modules
+    where the XOR map indicates a difference. This produces a dual-module QR code
+    that can be read differently depending on scanning distance.
+
+    Args:
+        base_image_path: Path to the base QR code image file.
+        xor_map: 2D list indicating which modules differ between two QR codes (1 = different, 0 = same).
+        module_size: Size of each QR code module in pixels (side length).
+        submodule_size: Size of each submodule in pixels (side length).
+        border_modules: Number of blank modules around the QR code.
+        output_path: Path where the final dual-module QR code will be saved.
+    """
 
     img = Image.open(base_image_path).convert("RGB")
     draw = ImageDraw.Draw(img)
