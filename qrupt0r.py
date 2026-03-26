@@ -281,19 +281,19 @@ def create(
     overlay_url: str = typer.Argument(..., help="URL to embed into the QR code"),
     debug: bool = typer.Option(False, "--debug", help="Enable debug output"),
     border_size: int = typer.Option(
-        4, "--border", "-b", help="Border thickness (number of blank modules)"
+        4, "--border", "-b", min=0, help="Border thickness (number of blank modules)"
     ),
     error_level: str = typer.Option(
         "L", "--error-level", "-e", help="Error correction level (L, M, Q, H)"
     ),
     module_size: int = typer.Option(
-        29, "--module", "-m", help="Module size in pixels (side length)"
+        29, "--module", "-m", min=7, help="Module size in pixels (side length)"
     ),
     output_path: str = typer.Option(
         "qrupt0r.png", "--output", "-o", help="QR code output path"
     ),
     submodule_size: int = typer.Option(
-        5, "--submodule", "-s", help="Submodule size in pixels (side length)"
+        5, "--submodule", "-s", min=1, help="Submodule size in pixels (side length)"
     ),
 ):
     # Set debug output, if requested
