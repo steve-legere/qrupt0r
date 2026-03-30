@@ -18,7 +18,7 @@ from qrcode.constants import (
 from logger import setup_logging, logger
 
 NAME = "qrupt0r"
-VERSION = "0.2.4"
+VERSION = "1.0.0"
 URL = "https://github.com/steve-legere/qrupt0r"
 
 # Upper bound (exclusive) for black pixels
