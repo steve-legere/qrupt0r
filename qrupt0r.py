@@ -278,12 +278,15 @@ def validate_inputs(
 def create(
     primary_url: str = typer.Argument(..., help="Primary URL to generate QR code"),
     overlay_url: str = typer.Argument(..., help="URL to embed into the QR code"),
-    debug: bool = typer.Option(False, "--debug", help="Enable debug output"),
     border_size: int = typer.Option(
         4, "--border", "-b", min=0, help="Border thickness (number of blank modules)"
     ),
+    debug: bool = typer.Option(False, "--debug", help="Enable debug output"),
     error_level: str = typer.Option(
         "L", "--error-level", "-e", help="Error correction level (L, M, Q, H)"
+    ),
+    force: bool = typer.Option(
+        False, "--force", help="Force output (may break functionality)"
     ),
     module_size: int = typer.Option(
         29, "--module", "-m", min=7, help="Module size in pixels (side length)"
@@ -291,26 +294,37 @@ def create(
     output_path: str = typer.Option(
         "qrupt0r.png", "--output", "-o", help="QR code output path"
     ),
+    silent: bool = typer.Option(
+        False, "--silent", help="Suppress all output (except critical errors)"
+    ),
     submodule_size: int = typer.Option(
         5, "--submodule", "-s", min=1, help="Submodule size in pixels (side length)"
     ),
 ):
     # Set debug output, if requested
     if debug:
+        print_banner()
         logger.set_level(logging.DEBUG)
         setup_logging(logging.DEBUG)
+    elif silent:
+        logger.set_level(logging.CRITICAL)
     else:
+        print_banner()
         setup_logging(logging.INFO)
 
-    validate_inputs(
-        primary_url,
-        overlay_url,
-        border_size,
-        error_level,
-        module_size,
-        submodule_size,
-        output_path,
-    )
+    if not force:
+        validate_inputs(
+            primary_url,
+            overlay_url,
+            border_size,
+            error_level,
+            module_size,
+            submodule_size,
+            output_path,
+        )
+
+    else:
+        logger.warning("Force output is enabled - this may break functionality")
 
     error_level = error_level.upper()
 
@@ -349,5 +363,4 @@ def create(
 
 
 if __name__ == "__main__":
-    print_banner()
     app()
