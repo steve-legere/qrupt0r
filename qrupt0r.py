@@ -163,8 +163,8 @@ def get_xor_result(map1: list[list[int]], map2: list[list[int]]) -> list[list[in
         logger.warning(
             "XOR operation on two different QR code sizes will likely break functionality"
         )
-    size = len(map1)
-    xor_map = [[map1[r][c] ^ map2[r][c] for c in range(size)] for r in range(size)]
+    rows, cols = len(map1), len(map1[0])
+    xor_map = [[map1[r][c] ^ map2[r][c] for c in range(cols)] for r in range(rows)]
     return xor_map
 
 
@@ -301,6 +301,10 @@ def create(
         5, "--submodule", "-s", min=1, help="Submodule size in pixels (side length)"
     ),
 ):
+    if debug and silent:
+        logger.error("Cannot use --debug and --silent together")
+        raise typer.Exit(code=1)
+
     # Determine log level
     if debug:
         level = logging.DEBUG
