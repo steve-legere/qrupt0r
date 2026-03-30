@@ -301,16 +301,21 @@ def create(
         5, "--submodule", "-s", min=1, help="Submodule size in pixels (side length)"
     ),
 ):
-    # Set debug output, if requested
+    # Determine log level
     if debug:
-        print_banner()
-        logger.set_level(logging.DEBUG)
-        setup_logging(logging.DEBUG)
+        level = logging.DEBUG
     elif silent:
-        logger.set_level(logging.CRITICAL)
+        level = logging.CRITICAL
     else:
+        level = logging.INFO
+
+    # Apply configuration
+    logger.set_level(level)
+    setup_logging(level)
+
+    # Print banner unless silent
+    if not silent:
         print_banner()
-        setup_logging(logging.INFO)
 
     if not force:
         validate_inputs(
