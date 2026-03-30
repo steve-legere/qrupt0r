@@ -18,9 +18,10 @@ from qrcode.constants import (
 from logger import setup_logging, logger
 
 NAME = "qrupt0r"
-VERSION = "0.2.3"
+VERSION = "0.2.4"
 URL = "https://github.com/steve-legere/qrupt0r"
 
+# Upper bound (exclusive) for black pixels
 THRESHOLD = 128
 
 # Reference: https://www.qrcode.com/en/about/error_correction.html
@@ -188,24 +189,23 @@ def generate_overlay_qr(
     img = base_image.convert("RGB")
     draw = ImageDraw.Draw(img)
 
-    sub_size = submodule_size
     offset = module_size * border_modules
-    half_gap = (module_size - sub_size) // 2
+    half_gap = (module_size - submodule_size) // 2
 
     for r in range(len(xor_map)):
         for c in range(len(xor_map)):
             if xor_map[r][c] == 1:
                 x0 = offset + c * module_size + half_gap
                 y0 = offset + r * module_size + half_gap
-                x1 = x0 + sub_size
-                y1 = y0 + sub_size
+                x1 = x0 + submodule_size
+                y1 = y0 + submodule_size
 
                 # Determine original module color (sample center pixel)
                 center_x = offset + c * module_size + module_size // 2
                 center_y = offset + r * module_size + module_size // 2
                 pixel = img.getpixel((center_x, center_y))
 
-                # Invert color
+                # Average RGB (grayscale)
                 if sum(pixel) / 3 < THRESHOLD:
                     color = (255, 255, 255)  # white
                 else:
@@ -257,8 +257,8 @@ def validate_inputs(
     if submodule_size > (module_size * 0.5):
         logger.warning("Submodule size > 50% of module size may not function correctly")
 
-    if submodule_size < (module_size * 0.2):
-        logger.warning("Submodule size < 20% of module size may not function correctly")
+    if submodule_size < (module_size * 0.1):
+        logger.warning("Submodule size < 10% of module size may not function correctly")
 
     if not (
         isinstance(error_level, str)
