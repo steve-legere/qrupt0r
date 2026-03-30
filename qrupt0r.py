@@ -317,7 +317,10 @@ def create(
     if not silent:
         print_banner()
 
-    if not force:
+    if force:
+        logger.warning("Force output is enabled - this may break functionality")
+
+    else:
         validate_inputs(
             primary_url,
             overlay_url,
@@ -327,13 +330,8 @@ def create(
             submodule_size,
             output_path,
         )
-
-    else:
-        logger.warning("Force output is enabled - this may break functionality")
-
-    error_level = error_level.upper()
-
-    logger.debug("create() passed input validation")
+        logger.debug("create() passed input validation")
+        error_level = error_level.upper()
 
     qr1 = create_qr_code(primary_url, error_level, module_size, border_size)
     qr2 = create_qr_code(overlay_url, error_level, module_size, border_size)
