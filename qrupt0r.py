@@ -5,6 +5,11 @@ import os
 import sys
 from urllib.parse import urlparse
 
+MIN_PYTHON = (3, 9)
+
+if sys.version_info < MIN_PYTHON:
+    sys.exit(f"Python %s.%s or later is required.\n" % MIN_PYTHON)
+
 import pyfiglet
 import qrcode
 import typer
@@ -17,11 +22,6 @@ from qrcode.constants import (
 )
 
 from logger import setup_logging, logger
-
-MIN_PYTHON = (3, 9)
-
-if sys.version_info < MIN_PYTHON:
-    sys.exit(f"Python %s.%s or later is required.\n" % MIN_PYTHON)
 
 NAME = "qrupt0r"
 VERSION = "1.0.1"
