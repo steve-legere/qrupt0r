@@ -2,6 +2,7 @@
 # "Dual-Message QR Codes" - https://doi.org/10.3390/s24103055
 import logging
 import os
+import sys
 from urllib.parse import urlparse
 
 import pyfiglet
@@ -17,8 +18,13 @@ from qrcode.constants import (
 
 from logger import setup_logging, logger
 
+MIN_PYTHON = (3, 9)
+
+if sys.version_info < MIN_PYTHON:
+    sys.exit(f"Python %s.%s or later is required.\n" % MIN_PYTHON)
+
 NAME = "qrupt0r"
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 URL = "https://github.com/steve-legere/qrupt0r"
 
 # Upper bound (exclusive) for black pixels
@@ -169,8 +175,13 @@ def get_xor_result(map1: list[list[int]], map2: list[list[int]]) -> list[list[in
 
 
 def generate_overlay_qr(
-    base_image, xor_map, module_size, submodule_size, border_modules, output_path
-):
+    base_image: Image.Image,
+    xor_map: list[list[int]],
+    module_size: int,
+    submodule_size: int,
+    border_modules: int,
+    output_path: str,
+) -> None:
     """Generates a dual-module QR code by overlaying submodules on a base QR code.
 
     Creates a QR code with embedded submodules by inverting the color of modules
