@@ -24,7 +24,7 @@ from qrcode.constants import (
 from logger import setup_logging, logger
 
 NAME = "qrupt0r"
-VERSION = "1.0.1"
+VERSION = "1.0.2"
 URL = "https://github.com/steve-legere/qrupt0r"
 
 # Upper bound (exclusive) for black pixels
@@ -169,6 +169,10 @@ def get_xor_result(map1: list[list[int]], map2: list[list[int]]) -> list[list[in
         logger.warning(
             "XOR operation on two different QR code sizes will likely break functionality"
         )
+
+    if map1 == map2:
+        logger.warning("Overlaying duplicate QR codes")
+
     rows, cols = len(map1), len(map1[0])
     xor_map = [[map1[r][c] ^ map2[r][c] for c in range(cols)] for r in range(rows)]
     return xor_map
