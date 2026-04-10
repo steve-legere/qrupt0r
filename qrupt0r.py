@@ -24,7 +24,7 @@ from qrcode.constants import (
 from logger import setup_logging, logger
 
 NAME = "qrupt0r"
-VERSION = "1.0.2"
+VERSION = "1.0.3"
 URL = "https://github.com/steve-legere/qrupt0r"
 
 # Upper bound (exclusive) for black pixels
@@ -37,6 +37,15 @@ EC_MAP = {
     "Q": ERROR_CORRECT_Q,
     "H": ERROR_CORRECT_H,
 }
+
+DEFAULTS = {
+    "border": 4,
+    "module": 29,
+    "submodule": 5,
+    "EC": "L",
+    "output": "qrupt0r.png",
+}
+
 app = typer.Typer(add_completion=False)
 
 
@@ -59,7 +68,11 @@ def is_writable_path(path_str: str) -> bool:
 
 
 def create_qr_code(
-    text: str, error_level: str, module_size=29, border_size=4, version: int = None
+    text: str,
+    error_level: str = DEFAULTS["EC"],
+    module_size=DEFAULTS["module"],
+    border_size=DEFAULTS["submodule"],
+    version: int = None,
 ) -> qrcode.QRCode:
     """
     Generates a QR code from the given text and error correction level, with optionally specified border size, module size, and version.
@@ -294,26 +307,41 @@ def create(
     primary_url: str = typer.Argument(..., help="Primary URL to generate QR code"),
     overlay_url: str = typer.Argument(..., help="URL to embed into the QR code"),
     border_size: int = typer.Option(
-        4, "--border", "-b", min=0, help="Border thickness (number of blank modules)"
+        DEFAULTS["border"],
+        "--border",
+        "-b",
+        min=0,
+        help="Border thickness (number of blank modules)",
     ),
     debug: bool = typer.Option(False, "--debug", help="Enable debug output"),
     error_level: str = typer.Option(
-        "L", "--error-level", "-e", help="Error correction level (L, M, Q, H)"
+        DEFAULTS["EC"],
+        "--error-level",
+        "-e",
+        help="Error correction level (L, M, Q, H)",
     ),
     force: bool = typer.Option(
         False, "--force", help="Force output (may break functionality)"
     ),
     module_size: int = typer.Option(
-        29, "--module", "-m", min=7, help="Module size in pixels (side length)"
+        DEFAULTS["module"],
+        "--module",
+        "-m",
+        min=7,
+        help="Module size in pixels (side length)",
     ),
     output_path: str = typer.Option(
-        "qrupt0r.png", "--output", "-o", help="QR code output path"
+        DEFAULTS["output"], "--output", "-o", help="QR code output path"
     ),
     silent: bool = typer.Option(
         False, "--silent", help="Suppress all output (except critical errors)"
     ),
     submodule_size: int = typer.Option(
-        5, "--submodule", "-s", min=1, help="Submodule size in pixels (side length)"
+        DEFAULTS["submodule"],
+        "--submodule",
+        "-s",
+        min=1,
+        help="Submodule size in pixels (side length)",
     ),
 ):
     if debug and silent:
