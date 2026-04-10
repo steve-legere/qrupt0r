@@ -1,12 +1,10 @@
-<p style="text-align: center;">
+<p align="center">
   <img src="img/banner.png" alt="qrupt0r banner" width="500"/>
 </p>
 
-<p style="text-align: center;">
+<p align="center">
   <b>:: dual-module QR generator ::</b>
 </p>
-
----
 
 ## 🔍 Overview
 
@@ -132,12 +130,12 @@ python qrupt0r.py -o example-partial.png https://www.example.com/3 https://www.e
 python qrupt0r.py -o example-full.png https://www.example.com/3 https://www.example.com/4
 ```
 
-<p style="text-align: center;">
+<p align="center">
   <img src="img/example-partial.png" alt="Partial Difference Example" width="300" style="margin-right: 20px;" />
   <img src="img/example-full.png" alt="Full Difference Example" width="300" />
 </p>
 
-<p style="text-align: center;">
+<p align="center">
   <sub>
     <b>Left:</b> Partial difference — inputs are similar, differences mostly in error correction.<br>
     <b>Right:</b> Full difference — inputs diverge significantly, resulting in extensive submodule embedding.
@@ -162,7 +160,8 @@ python qrupt0r.py -o example-full.png https://www.example.com/3 https://www.exam
 
 Based on published research:
 
-> Chou, K.-C., & Wang, R.-Z. (2024). Dual-Message QR Codes. Sensors, 24(10), 3055. https://doi.org/10.3390/s24103055
+> Chou, K.-C., & Wang, R.-Z. (2024). Dual-Message QR Codes. Sensors, 24(10), 3055.
+> https://doi.org/10.3390/s24103055
 
 ---
 
