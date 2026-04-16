@@ -71,22 +71,6 @@ pip install -r requirements.txt
 
 ---
 
-## 🚀 Usage
-
-### Basic
-
-```shell
-python qrupt0r.py <primary_url> <overlay_url>
-```
-
-### Example
-
-```shell
-python qrupt0r.py -o example.png https://example.com/a https://example.com/b
-```
-
----
-
 ## ⚙️ CLI Options
 
 Usage:
