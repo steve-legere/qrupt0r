@@ -60,7 +60,7 @@ This makes them useful for:
 pyfiglet~=1.0.4
 qrcode~=8.2
 typer~=0.24.1
-pillow~=12.1.1
+pillow~=12.2.0
 ```
 
 Install:
