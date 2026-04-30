@@ -24,7 +24,7 @@ from qrcode.constants import (
 from logger import setup_logging, logger
 
 NAME = "qrupt0r"
-VERSION = "1.0.3"
+VERSION = "1.0.4"
 URL = "https://github.com/steve-legere/qrupt0r"
 
 # Upper bound (exclusive) for black pixels
@@ -225,8 +225,8 @@ def generate_overlay_qr(
             if xor_map[r][c] == 1:
                 x0 = offset + c * module_size + half_gap
                 y0 = offset + r * module_size + half_gap
-                x1 = x0 + submodule_size
-                y1 = y0 + submodule_size
+                x1 = x0 + submodule_size - 1
+                y1 = y0 + submodule_size - 1
 
                 # Determine original module color (sample center pixel)
                 center_x = offset + c * module_size + module_size // 2
