@@ -1,5 +1,7 @@
 import mimetypes
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -16,22 +18,45 @@ PROFILE_NAME = "ses-sender"
 IMAGE_DIR = "./test/"
 CONFIG_SET = "default_config_set"
 
-RATE_LIMIT_SECONDS = 0.25
+# Performance tuning
+MAX_WORKERS = 8
+MAX_EMAILS_PER_SECOND = 10
+
+
+# =========================
+# TOKEN BUCKET RATE LIMITER
+# =========================
+class RateLimiter:
+    def __init__(self, rate_per_sec: float):
+        self.interval = 1.0 / rate_per_sec
+        self.lock = threading.Lock()
+        self.last_time = 0.0
+
+    def wait(self):
+        with self.lock:
+            now = time.time()
+            elapsed = now - self.last_time
+
+            if elapsed < self.interval:
+                time.sleep(self.interval - elapsed)
+
+            self.last_time = time.time()
+
+
+rate_limiter = RateLimiter(MAX_EMAILS_PER_SECOND)
 
 
 def create_message(image_path: Path):
     filename = image_path.name
     subject = f"QR Payload: {filename}"
 
-    # Create MIME container
     msg = MIMEMultipart("related")
     msg["Subject"] = subject
     msg["From"] = FROM_EMAIL
     msg["To"] = TO_EMAIL
 
-    # Add configuration set (IMPORTANT: goes in SES send_raw_email, not headers)
-    msg_alternative = MIMEMultipart("alternative")
-    msg.attach(msg_alternative)
+    alt = MIMEMultipart("alternative")
+    msg.attach(alt)
 
     html_body = f"""
     <html>
@@ -42,9 +67,8 @@ def create_message(image_path: Path):
     </html>
     """
 
-    msg_alternative.attach(MIMEText(html_body, "html"))
+    alt.attach(MIMEText(html_body, "html"))
 
-    # Attach image inline
     with open(image_path, "rb") as f:
         img_data = f.read()
 
@@ -61,33 +85,46 @@ def create_message(image_path: Path):
     return msg.as_string(), subject
 
 
+def worker(ses, image_path):
+    raw_email, subject = create_message(image_path)
+
+    # 🔒 global rate limit (critical)
+    rate_limiter.wait()
+
+    response = ses.send_raw_email(
+        Source=FROM_EMAIL,
+        Destinations=[TO_EMAIL],
+        RawMessage={"Data": raw_email},
+        ConfigurationSetName=CONFIG_SET,
+    )
+
+    return subject, response
+
+
 def main():
     session = boto3.Session(profile_name=PROFILE_NAME, region_name=REGION)
     ses = session.client("ses")
 
     images = sorted(Path(IMAGE_DIR).glob("*.png"))
-
     print(f"[+] Found {len(images)} images")
 
-    for i, img_path in enumerate(images, start=1):
-        raw_email, subject = create_message(img_path)
+    sent = 0
 
-        try:
-            response = ses.send_raw_email(
-                Source=FROM_EMAIL,
-                Destinations=[TO_EMAIL],
-                RawMessage={"Data": raw_email},
-                ConfigurationSetName=CONFIG_SET,
-            )
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        futures = {executor.submit(worker, ses, img): img for img in images}
 
-            print(f"[{i}/{len(images)}] Sent: {subject}")
+        for i, future in enumerate(as_completed(futures), start=1):
+            img_path = futures[future]
 
-        except Exception as e:
-            print(f"[!] Failed to send {img_path.name}: {e}")
+            try:
+                subject, _ = future.result()
+                sent += 1
+                print(f"[{i}/{len(images)}] Sent: {subject}")
 
-        time.sleep(RATE_LIMIT_SECONDS)
+            except Exception as e:
+                print(f"[!] Failed {img_path.name}: {e}")
 
-    print("\n✔ Done sending all emails.")
+    print(f"\n✔ Done. Sent {sent}/{len(images)} emails.")
 
 
 if __name__ == "__main__":

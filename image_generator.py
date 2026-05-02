@@ -1,11 +1,14 @@
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-BENIGN_FILE = "./res/benign-urls.txt"
-MALICIOUS_FILE = "./res/malicious-urls.txt"
+BENIGN_FILE = "./res/benign.txt"
+MALICIOUS_FILE = "./res/malicious.txt"
 OUTPUT_DIR = "./test/"
 QRC_SCRIPT = "./qrupt0r.py"
+
+MAX_WORKERS = 8  # tweak this (start with 4–8)
 
 
 def load_lines(path):
@@ -17,7 +20,7 @@ def run_qr(output_name, left, right):
     output_path = Path(OUTPUT_DIR) / output_name
 
     cmd = [
-        sys.executable,  # ensures venv Python is used
+        sys.executable,
         QRC_SCRIPT,
         "-o",
         str(output_path),
@@ -27,6 +30,22 @@ def run_qr(output_name, left, right):
     ]
 
     subprocess.run(cmd, check=True)
+
+
+def build_tasks(benign, malicious):
+    tasks = []
+
+    for i, (b, m) in enumerate(zip(benign, malicious), start=1):
+        tasks.extend(
+            [
+                (f"qr_{i:04d}_benign_benign.png", b, b),
+                (f"qr_{i:04d}_malicious_malicious.png", m, m),
+                (f"qr_{i:04d}_benign_malicious.png", b, m),
+                (f"qr_{i:04d}_malicious_benign.png", m, b),
+            ]
+        )
+
+    return tasks
 
 
 def main():
@@ -40,24 +59,22 @@ def main():
 
     Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
 
+    tasks = build_tasks(benign, malicious)
+
     count = 0
 
-    for i, (b, m) in enumerate(zip(benign, malicious), start=1):
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        future_to_task = {
+            executor.submit(run_qr, filename, left, right): filename
+            for filename, left, right in tasks
+        }
 
-        combos = [
-            ("benign_benign", b, b),
-            ("malicious_malicious", m, m),
-            ("benign_malicious", b, m),
-            ("malicious_benign", m, b),
-        ]
-
-        for suffix, left, right in combos:
-            filename = f"qr_{i:03d}_{suffix}.png"
-            print(f"[+] Generating {filename}")
-
+        for future in as_completed(future_to_task):
+            filename = future_to_task[future]
             try:
-                run_qr(filename, left, right)
+                future.result()
                 count += 1
+                print(f"[+] Done: {filename}")
             except subprocess.CalledProcessError as e:
                 print(f"[!] Failed: {filename} ({e})")
 
