@@ -24,7 +24,7 @@ from qrcode.constants import (
 from logger import setup_logging, logger
 
 NAME = "qrupt0r"
-VERSION = "1.0.4"
+VERSION = "1.0.5"
 URL = "https://github.com/steve-legere/qrupt0r"
 
 # Upper bound (exclusive) for black pixels
@@ -285,8 +285,8 @@ def validate_inputs(
     if submodule_size > (module_size * 0.5):
         logger.warning("Submodule size > 50% of module size may not function correctly")
 
-    if submodule_size < (module_size * 0.1):
-        logger.warning("Submodule size < 10% of module size may not function correctly")
+    if submodule_size < 2:
+        logger.warning("Submodule size of 1 may not bypass QR code detection")
 
     if not (
         isinstance(error_level, str)
@@ -327,7 +327,6 @@ def create(
         DEFAULTS["module"],
         "--module",
         "-m",
-        min=7,
         help="Module size in pixels (side length)",
     ),
     output_path: str = typer.Option(
@@ -352,7 +351,7 @@ def create(
     if debug:
         level = logging.DEBUG
     elif silent:
-        level = logging.CRITICAL
+        level = logging.ERROR
     else:
         level = logging.INFO
 
